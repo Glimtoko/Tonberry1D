@@ -1,4 +1,5 @@
 #include "tonberry.h"
 
-Mesh setup(double length, double x0, int ncells, double gamma);
+Problem readProblemDetails();
+Mesh setup(Problem problem);
 void setBoundaries(Mesh &mesh);

@@ -10,7 +10,6 @@ void mainLoop(
 ){
     // Number of non-ghost cells in mesh
     int nCellsGhosts = rho.size();
-    int nCells = rho.size() - 4;
 
     // Boundary indices
     int gL1 = 1;

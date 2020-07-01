@@ -1,21 +1,102 @@
 #include "tonberry.h"
 #include "setup.h"
 
-Mesh setup(double length, double x0, int ncells, double gamma) {
+#include <boost/program_options.hpp>
+
+#include <iostream>
+#include <fstream>
+
+namespace bpo = boost::program_options;
+
+Problem readProblemDetails() {
+    bpo::options_description optionList;
+
+    optionList.add_options()
+        ("problem.ncells",bpo::value<int>()->default_value(100), "Number of cells")
+        ("problem.tend",bpo::value<double>()->default_value(2.5), "End time")
+        ("problem.dtmax",bpo::value<double>()->default_value(0.1), "Max timestep")
+        ("problem.gamma",bpo::value<double>()->default_value(1.0), "Gamma (EoS)")
+        ("problem.cfl",bpo::value<double>()->default_value(0.6), "CFL")
+
+        ("domain.length", bpo::value<double>()->default_value(1.0), "Length of domain")
+        ("domain.x0", bpo::value<double>()->default_value(0.5), "Position of interface")
+
+        ("domain.rhoL", bpo::value<double>()->default_value(1.0), "Left-side density")
+        ("domain.pL", bpo::value<double>()->default_value(1.0), "Left-side pressure")
+        ("domain.uL", bpo::value<double>()->default_value(0.0), "Left-side velocity")
+
+        ("domain.rhoR", bpo::value<double>()->default_value(0.1), "Right-side density")
+        ("domain.pR", bpo::value<double>()->default_value(0.1), "Right-side pressure")
+        ("domain.uR", bpo::value<double>()->default_value(0.0), "Right-side velocity")
+        ;
+
+    // Open an input file
+    std::ifstream inFile;
+    inFile.open("input.dat");
+
+    // Parse file
+    bpo::variables_map vm;
+    bpo::store(bpo::parse_config_file(inFile, optionList), vm);
+
+    inFile.close();
+
+    // Create Problem struct
+    Problem problem;
+
+    problem.ncells = vm["problem.ncells"].as<int>();
+    problem.tend = vm["problem.tend"].as<double>();
+    problem.gamma = vm["problem.gamma"].as<double>();
+    problem.dtmax = vm["problem.dtmax"].as<double>();
+    problem.cfl = vm["problem.cfl"].as<double>();
+
+    problem.length = vm["domain.length"].as<double>();
+    problem.x0 = vm["domain.x0"].as<double>();
+
+    problem.rhoL = vm["domain.rhoL"].as<double>();
+    problem.pL = vm["domain.pL"].as<double>();
+    problem.uL = vm["domain.uL"].as<double>();
+
+    problem.rhoR = vm["domain.rhoR"].as<double>();
+    problem.pR = vm["domain.pR"].as<double>();
+    problem.uR = vm["domain.uR"].as<double>();
+
+    std::cout << "Problem input:" << std::endl;
+    std::cout << "  Length: " << problem.length << std::endl
+              << "  x0: " << problem.x0 << std::endl
+              << "  ncells: " << problem.ncells << std::endl << std::endl
+
+              << "  rhoL: " << problem.rhoL << std::endl
+              << "  pL:" << problem.pL << std::endl
+              << "  uL:" << problem.uL << std::endl << std::endl
+
+              << "  rhoR: " << problem.rhoR << std::endl
+              << "  pR:" << problem.pR << std::endl
+              << "  uR:" << problem.uR << std::endl << std::endl
+
+              << "  tend:" << problem.tend << std::endl
+              << "  dtmax:" << problem.dtmax << std::endl
+              << "  gamma:" << problem.gamma << std::endl
+              << "  CFL:" << problem.cfl << std::endl
+              ;
+
+    return problem;
+}
+
+Mesh setup(Problem problem) {
     // Mesh object
     Mesh mesh;
 
     // Initial quick hack - only support Sod
-    double uL = 0.0;
-    double uR = 0.0;
-    double rhoL = 1.0;
-    double rhoR = 0.125;
-    double pL = 1.0;
-    double pR = 0.1;
+//     double uL = 0.0;
+//     double uR = 0.0;
+//     double rhoL = 1.0;
+//     double rhoR = 0.125;
+//     double pL = 1.0;
+//     double pR = 0.1;
 
-    mesh.ncells = ncells;
-    mesh.ncellsPlusGhosts = ncells + 4;
-    mesh.dx = length/ncells;
+    mesh.ncells = problem.ncells;
+    mesh.ncellsPlusGhosts = problem.ncells + 4;
+    mesh.dx = problem.length/problem.ncells;
 
     // Set indices
     int end = mesh.ncellsPlusGhosts - 1;
@@ -27,15 +108,15 @@ Mesh setup(double length, double x0, int ncells, double gamma) {
     int R = end - 2;
 
     // Allocate storage - allow for ghosts
-    mesh.x.assign(ncells+4, 0.0);
-    mesh.rho.assign(ncells+4, 0.0);
-    mesh.mom.assign(ncells+4, 0.0);
-    mesh.E.assign(ncells+4, 0.0);
-    mesh.p.assign(ncells+4, 0.0);
-    mesh.u.assign(ncells+4, 0.0);
+    mesh.x.assign(problem.ncells+4, 0.0);
+    mesh.rho.assign(problem.ncells+4, 0.0);
+    mesh.mom.assign(problem.ncells+4, 0.0);
+    mesh.E.assign(problem.ncells+4, 0.0);
+    mesh.p.assign(problem.ncells+4, 0.0);
+    mesh.u.assign(problem.ncells+4, 0.0);
 
     // Set x - cell centre positions
-    for (int i=1; i<ncells+2; i++) {
+    for (int i=1; i<problem.ncells+2; i++) {
         mesh.x[i] = (i - 0.5)*mesh.dx;
     }
     mesh.x[gL1] = -mesh.dx;
@@ -47,18 +128,18 @@ Mesh setup(double length, double x0, int ncells, double gamma) {
     // Set initial fields
     for (int i=L; i<gR1; i++) {
         double xupper = mesh.x[i] + mesh.dx/2.0;
-        if (xupper <= x0) {
-            mesh.rho[i] = rhoL;
-            mesh.mom[i] = rhoL*uL;
-            mesh.p[i] = pL;
-            mesh.u[i] = uL;
+        if (xupper <= problem.x0) {
+            mesh.rho[i] = problem.rhoL;
+            mesh.mom[i] = problem.rhoL*problem.uL;
+            mesh.p[i] = problem.pL;
+            mesh.u[i] = problem.uL;
         } else {
-            mesh.rho[i] = rhoR;
-            mesh.mom[i] = rhoR*uR;
-            mesh.p[i] = pR;
-            mesh.u[i] = uR;
+            mesh.rho[i] = problem.rhoR;
+            mesh.mom[i] = problem.rhoR*problem.uR;
+            mesh.p[i] = problem.pR;
+            mesh.u[i] = problem.uR;
         }
-        double e = mesh.p[i]/((gamma - 1.0)*mesh.rho[i]);
+        double e = mesh.p[i]/((problem.gamma - 1.0)*mesh.rho[i]);
         mesh.E[i] = mesh.rho[i]*(0.5*mesh.u[i]*mesh.u[i] + e);
     }
 
