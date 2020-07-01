@@ -3,8 +3,13 @@
 #include "main_loop.h"
 #include "flux.h"
 
+#include <boost/mpi/environment.hpp>
+#include <boost/mpi/communicator.hpp>
+
 #include <iostream>
 #include <fstream>
+
+namespace mpi = boost::mpi;
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -12,9 +17,20 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    Problem problem = readProblemDetails(argv[1]);
+    mpi::environment env;
+    mpi::communicator world;
+    std::cout << "I am process " << world.rank() << " of " << world.size()
+                << "." << std::endl;
 
-    Mesh mesh = setup(problem);
+    Problem problem = readProblemDetails(argv[1], world.rank());
+
+    Mesh mesh = setup(problem, world.rank(), world.size());
+
+    for (int i=0; i<mesh.ncellsPlusGhosts; i++) {
+        std::cout << world.rank() << " " << i-2 << " " << mesh.rho[i] << std::endl;
+    }
+
+    return -2;
 
     // Main loop
     mainLoop(

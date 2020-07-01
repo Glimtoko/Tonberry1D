@@ -34,9 +34,13 @@ struct Mesh {
     TB_ARRAY p;
     TB_ARRAY u;
 
+    int globalNCells;
     int ncells;
     int ncellsPlusGhosts;
     double dx;
+
+    int globalL;
+    int globalR;
 };
 
 struct Flux {
@@ -44,15 +48,5 @@ struct Flux {
     double mom;
     double E;
 };
-
-// std::ostream& operator<<(std::ostream& os, const Problem& problem) {
-//     return os /*<< "Length: " << problem.length << std::endl
-//               << "x0: " << problem.x0 << std::endl
-//               << "ncells: " << problem.ncells << std::endl << std::endl
-//               << "rhoL: " << problem.rhoL << std::endl
-//               << "pL:" << problem.pL << std::endl
-//               << "uL:" << problem.uL << std::endl
-//               ;*/
-// }
 
 #endif

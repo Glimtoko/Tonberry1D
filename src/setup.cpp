@@ -8,7 +8,7 @@
 
 namespace bpo = boost::program_options;
 
-Problem readProblemDetails(char *fname) {
+Problem readProblemDetails(char *fname, int rank) {
     bpo::options_description optionList;
 
     optionList.add_options()
@@ -60,42 +60,47 @@ Problem readProblemDetails(char *fname) {
     problem.pR = vm["domain.pR"].as<double>();
     problem.uR = vm["domain.uR"].as<double>();
 
-    std::cout << "Problem input:" << std::endl;
-    std::cout << "  Length: " << problem.length << std::endl
-              << "  x0: " << problem.x0 << std::endl
-              << "  ncells: " << problem.ncells << std::endl << std::endl
+    if (rank == 0) {
+        std::cout << "Problem input:" << std::endl;
+        std::cout << "  Length: " << problem.length << std::endl
+                << "  x0: " << problem.x0 << std::endl
+                << "  ncells: " << problem.ncells << std::endl << std::endl
 
-              << "  rhoL: " << problem.rhoL << std::endl
-              << "  pL:" << problem.pL << std::endl
-              << "  uL:" << problem.uL << std::endl << std::endl
+                << "  rhoL: " << problem.rhoL << std::endl
+                << "  pL:" << problem.pL << std::endl
+                << "  uL:" << problem.uL << std::endl << std::endl
 
-              << "  rhoR: " << problem.rhoR << std::endl
-              << "  pR:" << problem.pR << std::endl
-              << "  uR:" << problem.uR << std::endl << std::endl
+                << "  rhoR: " << problem.rhoR << std::endl
+                << "  pR:" << problem.pR << std::endl
+                << "  uR:" << problem.uR << std::endl << std::endl
 
-              << "  tend:" << problem.tend << std::endl
-              << "  dtmax:" << problem.dtmax << std::endl
-              << "  gamma:" << problem.gamma << std::endl
-              << "  CFL:" << problem.cfl << std::endl
-              ;
+                << "  tend:" << problem.tend << std::endl
+                << "  dtmax:" << problem.dtmax << std::endl
+                << "  gamma:" << problem.gamma << std::endl
+                << "  CFL:" << problem.cfl << std::endl
+                ;
+    }
 
     return problem;
 }
 
-Mesh setup(Problem problem) {
+Mesh setup(Problem problem, int rank, int size) {
     // Mesh object
     Mesh mesh;
 
-    // Initial quick hack - only support Sod
-//     double uL = 0.0;
-//     double uR = 0.0;
-//     double rhoL = 1.0;
-//     double rhoR = 0.125;
-//     double pL = 1.0;
-//     double pR = 0.1;
+    int ncellsPerProc = problem.ncells / size;
 
-    mesh.ncells = problem.ncells;
-    mesh.ncellsPlusGhosts = problem.ncells + 4;
+    if (size * ncellsPerProc != problem.ncells) {
+        if (rank == 0) {
+            std::cout << "ERROR: Number of cells does not divide ";
+            std::cout << "by number of processors!";
+            std::cout << std::endl;
+        }
+    }
+
+    mesh.globalNCells = problem.ncells;
+    mesh.ncells = ncellsPerProc;
+    mesh.ncellsPlusGhosts = mesh.ncells + 4;
     mesh.dx = problem.length/problem.ncells;
 
     // Set indices
@@ -115,14 +120,19 @@ Mesh setup(Problem problem) {
     mesh.p.assign(problem.ncells+4, 0.0);
     mesh.u.assign(problem.ncells+4, 0.0);
 
+    // Global index of left-hand  and right-hand cells
+    mesh.globalL = ncellsPerProc*rank;
+    mesh.globalR = ncellsPerProc*(rank+1) - 1;
+
     // Set x - cell centre positions
-    for (int i=1; i<problem.ncells+2; i++) {
-        mesh.x[i] = (i - 0.5)*mesh.dx;
+    for (int i=L; i<gR1; i++) {
+        int gi = i - 1 + mesh.globalL;
+        mesh.x[i] = (gi - 0.5)*mesh.dx;
     }
-    mesh.x[gL1] = -mesh.dx;
-    mesh.x[gL2] = -1.5*mesh.dx;
+    mesh.x[gL1] = mesh.x[L] - mesh.dx;
+    mesh.x[gL2] = mesh.x[L] - 2*mesh.dx;
     mesh.x[gR1] = mesh.x[R] + mesh.dx;
-    mesh.x[gR2] = mesh.x[R] + 1.5*mesh.dx;
+    mesh.x[gR2] = mesh.x[R] + 2*mesh.dx;
 
 
     // Set initial fields
@@ -161,27 +171,31 @@ void setBoundaries(Mesh &mesh) {
     int R = end - 2;
 
     // Set boundary values
-    mesh.rho[gL1] = mesh.rho[L];
-    mesh.E[gL1] = mesh.E[L];
-    mesh.mom[gL1] = mesh.mom[L];
-    mesh.p[gL1] = mesh.p[L];
-    mesh.u[gL1] = mesh.u[L];
+    if (mesh.globalL == 0) {
+        mesh.rho[gL1] = mesh.rho[L];
+        mesh.E[gL1] = mesh.E[L];
+        mesh.mom[gL1] = mesh.mom[L];
+        mesh.p[gL1] = mesh.p[L];
+        mesh.u[gL1] = mesh.u[L];
 
-    mesh.rho[gL2] = mesh.rho[L+1];
-    mesh.E[gL2] = mesh.E[L+1];
-    mesh.mom[gL2] = mesh.mom[L+1];
-    mesh.p[gL2] = mesh.p[L+1];
-    mesh.u[gL2] = mesh.u[L+1];
+        mesh.rho[gL2] = mesh.rho[L+1];
+        mesh.E[gL2] = mesh.E[L+1];
+        mesh.mom[gL2] = mesh.mom[L+1];
+        mesh.p[gL2] = mesh.p[L+1];
+        mesh.u[gL2] = mesh.u[L+1];
+    }
 
-    mesh.rho[gR1] = mesh.rho[R];
-    mesh.E[gR1] = mesh.E[R];
-    mesh.mom[gR1] = mesh.mom[R];
-    mesh.p[gR1] = mesh.p[R];
-    mesh.u[gR1] = mesh.u[R];
+    if (mesh.globalR == mesh.globalNCells - 1) {
+        mesh.rho[gR1] = mesh.rho[R];
+        mesh.E[gR1] = mesh.E[R];
+        mesh.mom[gR1] = mesh.mom[R];
+        mesh.p[gR1] = mesh.p[R];
+        mesh.u[gR1] = mesh.u[R];
 
-    mesh.rho[gR2] = mesh.rho[R-1];
-    mesh.E[gR2] = mesh.E[R-1];
-    mesh.mom[gR2] = mesh.mom[R-1];
-    mesh.p[gR2] = mesh.p[R-1];
-    mesh.u[gR2] = mesh.u[R-1];
+        mesh.rho[gR2] = mesh.rho[R-1];
+        mesh.E[gR2] = mesh.E[R-1];
+        mesh.mom[gR2] = mesh.mom[R-1];
+        mesh.p[gR2] = mesh.p[R-1];
+        mesh.u[gR2] = mesh.u[R-1];
+    }
 }
