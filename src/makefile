@@ -1,6 +1,6 @@
-CC = g++
-CFLAGS = -g -Wall -Wextra -ansi -pedantic -fsanitize=address
-#CFLAGS = -g -std=c17 -ffp-exception-behavior=strict
+CC = mpic++
+#CFLAGS = -g -Wall -Wextra -ansi -pedantic -fsanitize=address
+CFLAGS = -O3 -std=c++17
 
 OBJECTS = main.o flux.o main_loop.o setup.o
 

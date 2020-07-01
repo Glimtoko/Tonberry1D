@@ -8,7 +8,7 @@
 
 namespace bpo = boost::program_options;
 
-Problem readProblemDetails() {
+Problem readProblemDetails(char *fname) {
     bpo::options_description optionList;
 
     optionList.add_options()
@@ -32,7 +32,7 @@ Problem readProblemDetails() {
 
     // Open an input file
     std::ifstream inFile;
-    inFile.open("input.dat");
+    inFile.open(fname);
 
     // Parse file
     bpo::variables_map vm;

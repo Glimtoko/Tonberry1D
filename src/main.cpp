@@ -6,8 +6,13 @@
 #include <iostream>
 #include <fstream>
 
-int main() {
-    Problem problem = readProblemDetails();
+int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        std::cout << "Usage: tonberry1d <input file>" << std::endl;
+        return -1;
+    }
+
+    Problem problem = readProblemDetails(argv[1]);
 
     Mesh mesh = setup(problem);
 
