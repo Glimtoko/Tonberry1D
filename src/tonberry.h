@@ -33,6 +33,7 @@ struct Mesh {
     TB_ARRAY E;
     TB_ARRAY p;
     TB_ARRAY u;
+    double gamma;
 
     int globalNCells;
     int ncells;

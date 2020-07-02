@@ -3,7 +3,7 @@
 #include "tonberry.h"
 
 void mainLoop(
-    TB_ARRAY &rho, TB_ARRAY &p, TB_ARRAY &u, TB_ARRAY &E, TB_ARRAY &mom,
+    Mesh &mesh,
     double tend, double dtmax, double dx, double gamma, double cfl
 );
 

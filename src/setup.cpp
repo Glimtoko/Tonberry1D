@@ -1,5 +1,6 @@
 #include "tonberry.h"
 #include "setup.h"
+#include "comms.h"
 
 #include <boost/program_options.hpp>
 
@@ -103,6 +104,9 @@ Mesh setup(Problem problem, int rank, int size) {
     mesh.ncellsPlusGhosts = mesh.ncells + 4;
     mesh.dx = problem.length/problem.ncells;
 
+    // Need to store gamma in mesh for post-comms reconstruction
+    mesh.gamma = problem.gamma;
+
     // Set indices
     int end = mesh.ncellsPlusGhosts - 1;
     int gL2 = 0;
@@ -149,12 +153,16 @@ Mesh setup(Problem problem, int rank, int size) {
             mesh.p[i] = problem.pR;
             mesh.u[i] = problem.uR;
         }
+
         double e = mesh.p[i]/((problem.gamma - 1.0)*mesh.rho[i]);
         mesh.E[i] = mesh.rho[i]*(0.5*mesh.u[i]*mesh.u[i] + e);
     }
 
     // Set boundaries
     setBoundaries(mesh);
+
+    // Parallel update
+    parallelUpdate(mesh);
 
     return mesh;
 }

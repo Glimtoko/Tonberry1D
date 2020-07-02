@@ -1,3 +1,3 @@
 #include "tonberry.h"
 
-void parallelUpdate(Mesh mesh);
+void parallelUpdate(Mesh &mesh);

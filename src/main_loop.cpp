@@ -1,15 +1,23 @@
 #include "flux.h"
 #include "main_loop.h"
+#include "comms.h"
 
 #include <iostream>
 #include <math.h>
 
+#include <boost/mpi.hpp>
+
+namespace mpi = boost::mpi;
+
 void mainLoop(
-    TB_ARRAY &rho, TB_ARRAY &p, TB_ARRAY &u, TB_ARRAY &E, TB_ARRAY &mom,
+    Mesh &mesh,
     double tend, double dtmax, double dx, double gamma, double cfl
 ){
+    // MPI
+    mpi::communicator world;
+
     // Number of non-ghost cells in mesh
-    int nCellsGhosts = rho.size();
+    int nCellsGhosts = mesh.ncellsPlusGhosts;
 
     // Boundary indices
     int gL1 = 1;
@@ -53,38 +61,46 @@ void mainLoop(
     // Main loop
     double t = 0.0;
     int step = 1;
+    double dt = 0.0;
     std::cout << "Stating main loop" << std::endl;
     for( ; ; ) {
+        // Parallel update
+        parallelUpdate(mesh);
+
         // Get estimate for maximum wave speed
         double S = 0;
         for (int i=0; i<nCellsGhosts; i++) {
-            double a = sqrt((gamma*p[i])/rho[i]);
-            S = std::max(S, a + u[i]);
+            double a = sqrt((gamma*mesh.p[i])/mesh.rho[i]);
+            S = std::max(S, a + mesh.u[i]);
         }
 
         // Calculate timestep
-        double dt = std::min(dtmax, cfl*dx/S);
-        std::cout << "Step: " << step;
-        std::cout << ", time = " << t;
-        std::cout << ", dt = " << dt << std::endl;
+        dt = std::min(dtmax, cfl*dx/S);
+        dt = mpi::all_reduce(world, dt, mpi::minimum<double>());
+
+        if (world.rank() == 0) {
+            std::cout << "Step: " << step;
+            std::cout << ", time = " << t;
+            std::cout << ", dt = " << dt << std::endl;
+        }
 
         // Calculate slopes
         for (int i=gL1; i<gR2; i++) {
-            deltaiRho[i] = getSlope(rho, i, omega);
-            deltaimom[i] = getSlope(mom, i, omega);
-            deltaiE[i] = getSlope(E, i, omega);
+            deltaiRho[i] = getSlope(mesh.rho, i, omega);
+            deltaimom[i] = getSlope(mesh.mom, i, omega);
+            deltaiE[i] = getSlope(mesh.E, i, omega);
         }
 
         // Data reconstruction
         for (int i=gL1; i<gR2; i++) {
-            rhoL[i] = rho[i] - 0.5*deltaiRho[i];
-            rhoR[i] = rho[i] + 0.5*deltaiRho[i];
+            rhoL[i] = mesh.rho[i] - 0.5*deltaiRho[i];
+            rhoR[i] = mesh.rho[i] + 0.5*deltaiRho[i];
 
-            momL[i] = mom[i] - 0.5*deltaimom[i];
-            momR[i] = mom[i] + 0.5*deltaimom[i];
+            momL[i] = mesh.mom[i] - 0.5*deltaimom[i];
+            momR[i] = mesh.mom[i] + 0.5*deltaimom[i];
 
-            EL[i] = E[i] - 0.5*deltaiE[i];
-            ER[i] = E[i] + 0.5*deltaiE[i];
+            EL[i] = mesh.E[i] - 0.5*deltaiE[i];
+            ER[i] = mesh.E[i] + 0.5*deltaiE[i];
         }
 
         // Data evolution to half timestep
@@ -133,27 +149,28 @@ void mainLoop(
                 uL_cell, rhoL_cell, pL_cell,
                 uR_cell, rhoR_cell, pR_cell,
                 gamma);
+
         }
 
         // Update conserved and primitive quantities
         f = dt/dx;
         for (int i=L; i<gR1; i++) {
             // Conservative update
-            rho[i] += f*(flux[i-1].rho - flux[i].rho);
-            mom[i] += f*(flux[i-1].mom - flux[i].mom);
-            E[i] += f*(flux[i-1].E - flux[i].E);
+            mesh.rho[i] += f*(flux[i-1].rho - flux[i].rho);
+            mesh.mom[i] += f*(flux[i-1].mom - flux[i].mom);
+            mesh.E[i] += f*(flux[i-1].E - flux[i].E);
 
             // Primitive update
-            u[i] = mom[i]/rho[i];
-            p[i] = (gamma - 1.0)*(E[i] - 0.5*rho[i]*u[i]*u[i]);
+            mesh.u[i] = mesh.mom[i]/mesh.rho[i];
+            mesh.p[i] = (gamma - 1.0)*(mesh.E[i] - 0.5*mesh.rho[i]*mesh.u[i]*mesh.u[i]);
 
             // Test for negative density and pressure
-            if (p[i] < 0.0 || rho[i] < 0.0) {
+            if (mesh.p[i] < 0.0 || mesh.rho[i] < 0.0) {
                 std::cout << "Negative density/pressure in cell " << i << std::endl;
-                std::cout << "Density = " << rho[i] << std::endl;
-                std::cout << "Pressure = " << p[i] << std::endl;
-                std::cout << "Energy = " << E[i] << std::endl;
-                std::cout << "Velocity = " << u[i] << std::endl;
+                std::cout << "Density = " << mesh.rho[i] << std::endl;
+                std::cout << "Pressure = " << mesh.p[i] << std::endl;
+                std::cout << "Energy = " << mesh.E[i] << std::endl;
+                std::cout << "Velocity = " << mesh.u[i] << std::endl;
             }
         }
 

@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <string>
 
 namespace mpi = boost::mpi;
 
@@ -26,23 +27,23 @@ int main(int argc, char* argv[]) {
 
     Mesh mesh = setup(problem, world.rank(), world.size());
 
-    for (int i=0; i<mesh.ncellsPlusGhosts; i++) {
-        std::cout << world.rank() << " " << i-2 << " " << mesh.rho[i] << std::endl;
-    }
-
-    return -2;
+//     for (int i=0; i<mesh.ncellsPlusGhosts; i++) {
+//         std::cout << world.rank() << " " << i-2 << " " << mesh.rho[i] << std::endl;
+//     }
+//
+//     return -2;
 
     // Main loop
     mainLoop(
-        mesh.rho, mesh.p, mesh.u, mesh.E, mesh.mom,
+        mesh,
         problem.tend, problem.dtmax, mesh.dx, problem.gamma, problem.cfl
     );
 
-
     // Output
+    std::string fname = "sod_c_" + std::to_string(world.rank()) + ".dat";
     std::ofstream outFile;
-    outFile.open("sod_c.dat");
-    for (int i=0; i<mesh.ncells+4; i++) {
+    outFile.open(fname);
+    for (int i=2; i<mesh.ncells+2; i++) {
         double ein = mesh.E[i]/mesh.rho[i] - 0.5*mesh.u[i]*mesh.u[i];
         outFile << i << " ";
         outFile << mesh.x[i] << " ";
