@@ -121,8 +121,6 @@ Mesh setup(Problem problem, int rank, int size) {
     mesh.rho.assign(problem.ncells+4, 0.0);
     mesh.mom.assign(problem.ncells+4, 0.0);
     mesh.E.assign(problem.ncells+4, 0.0);
-    mesh.p.assign(problem.ncells+4, 0.0);
-    mesh.u.assign(problem.ncells+4, 0.0);
 
     // Global index of left-hand  and right-hand cells
     mesh.globalL = ncellsPerProc*rank;
@@ -145,17 +143,16 @@ Mesh setup(Problem problem, int rank, int size) {
         if (xupper <= problem.x0) {
             mesh.rho[i] = problem.rhoL;
             mesh.mom[i] = problem.rhoL*problem.uL;
-            mesh.p[i] = problem.pL;
-            mesh.u[i] = problem.uL;
+
+            double e = problem.pL/((problem.gamma - 1.0)*mesh.rho[i]);
+            mesh.E[i] = mesh.rho[i]*(0.5*problem.uL*problem.uL + e);
         } else {
             mesh.rho[i] = problem.rhoR;
             mesh.mom[i] = problem.rhoR*problem.uR;
-            mesh.p[i] = problem.pR;
-            mesh.u[i] = problem.uR;
-        }
 
-        double e = mesh.p[i]/((problem.gamma - 1.0)*mesh.rho[i]);
-        mesh.E[i] = mesh.rho[i]*(0.5*mesh.u[i]*mesh.u[i] + e);
+            double e = problem.pR/((problem.gamma - 1.0)*mesh.rho[i]);
+            mesh.E[i] = mesh.rho[i]*(0.5*problem.uR*problem.uR + e);
+        }
     }
 
     // Set boundaries
@@ -183,27 +180,19 @@ void setBoundaries(Mesh &mesh) {
         mesh.rho[gL1] = mesh.rho[L];
         mesh.E[gL1] = mesh.E[L];
         mesh.mom[gL1] = mesh.mom[L];
-        mesh.p[gL1] = mesh.p[L];
-        mesh.u[gL1] = mesh.u[L];
 
         mesh.rho[gL2] = mesh.rho[L+1];
         mesh.E[gL2] = mesh.E[L+1];
         mesh.mom[gL2] = mesh.mom[L+1];
-        mesh.p[gL2] = mesh.p[L+1];
-        mesh.u[gL2] = mesh.u[L+1];
     }
 
     if (mesh.globalR == mesh.globalNCells - 1) {
         mesh.rho[gR1] = mesh.rho[R];
         mesh.E[gR1] = mesh.E[R];
         mesh.mom[gR1] = mesh.mom[R];
-        mesh.p[gR1] = mesh.p[R];
-        mesh.u[gR1] = mesh.u[R];
 
         mesh.rho[gR2] = mesh.rho[R-1];
         mesh.E[gR2] = mesh.E[R-1];
         mesh.mom[gR2] = mesh.mom[R-1];
-        mesh.p[gR2] = mesh.p[R-1];
-        mesh.u[gR2] = mesh.u[R-1];
     }
 }

@@ -27,12 +27,6 @@ int main(int argc, char* argv[]) {
 
     Mesh mesh = setup(problem, world.rank(), world.size());
 
-//     for (int i=0; i<mesh.ncellsPlusGhosts; i++) {
-//         std::cout << world.rank() << " " << i-2 << " " << mesh.rho[i] << std::endl;
-//     }
-//
-//     return -2;
-
     // Main loop
     mainLoop(
         mesh,
@@ -44,12 +38,15 @@ int main(int argc, char* argv[]) {
     std::ofstream outFile;
     outFile.open(fname);
     for (int i=2; i<mesh.ncells+2; i++) {
-        double ein = mesh.E[i]/mesh.rho[i] - 0.5*mesh.u[i]*mesh.u[i];
+        double u = mesh.mom[i]/mesh.rho[i];
+        double p = (problem.gamma - 1.0)*(mesh.E[i] - 0.5*mesh.rho[i]*u*u);
+        double ein = mesh.E[i]/mesh.rho[i] - 0.5*u*u;
+
         outFile << i << " ";
         outFile << mesh.x[i] << " ";
         outFile << mesh.rho[i] << " ";
-        outFile << mesh.p[i] << " ";
-        outFile << mesh.u[i] << " ";
+        outFile << p << " ";
+        outFile << u << " ";
         outFile << ein;
         outFile << std::endl;
     }

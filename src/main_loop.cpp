@@ -70,8 +70,10 @@ void mainLoop(
         // Get estimate for maximum wave speed
         double S = 0;
         for (int i=0; i<nCellsGhosts; i++) {
-            double a = sqrt((gamma*mesh.p[i])/mesh.rho[i]);
-            S = std::max(S, a + mesh.u[i]);
+            double u = mesh.mom[i]/mesh.rho[i];
+            double p = (mesh.gamma - 1.0)*(mesh.E[i] - 0.5*mesh.rho[i]*u*u);
+            double a = sqrt((gamma*p)/mesh.rho[i]);
+            S = std::max(S, a + u);
         }
 
         // Calculate timestep
@@ -160,17 +162,12 @@ void mainLoop(
             mesh.mom[i] += f*(flux[i-1].mom - flux[i].mom);
             mesh.E[i] += f*(flux[i-1].E - flux[i].E);
 
-            // Primitive update
-            mesh.u[i] = mesh.mom[i]/mesh.rho[i];
-            mesh.p[i] = (gamma - 1.0)*(mesh.E[i] - 0.5*mesh.rho[i]*mesh.u[i]*mesh.u[i]);
-
             // Test for negative density and pressure
-            if (mesh.p[i] < 0.0 || mesh.rho[i] < 0.0) {
-                std::cout << "Negative density/pressure in cell " << i << std::endl;
+            if (mesh.rho[i] < 0.0) {
+                std::cout << "Negative density in cell " << i << std::endl;
                 std::cout << "Density = " << mesh.rho[i] << std::endl;
-                std::cout << "Pressure = " << mesh.p[i] << std::endl;
                 std::cout << "Energy = " << mesh.E[i] << std::endl;
-                std::cout << "Velocity = " << mesh.u[i] << std::endl;
+                std::cout << "Momentum = " << mesh.mom[i] << std::endl;
             }
         }
 

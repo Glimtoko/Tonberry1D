@@ -141,12 +141,6 @@ void parallelUpdate(Mesh &mesh){
 
         mesh.E[Rg1] = ERecvRPack[0];
         mesh.E[Rg2] = ERecvRPack[1];
-
-        mesh.u[Rg1] = mesh.mom[Rg1]/mesh.rho[Rg1];
-        mesh.u[Rg2] = mesh.mom[Rg2]/mesh.rho[Rg2];
-        mesh.p[Rg1] = (mesh.gamma - 1.0)*(mesh.E[Rg1] - 0.5*mesh.rho[Rg1]*mesh.u[Rg1]*mesh.u[Rg1]);
-        mesh.p[Rg2] = (mesh.gamma - 1.0)*(mesh.E[Rg2] - 0.5*mesh.rho[Rg2]*mesh.u[Rg2]*mesh.u[Rg2]);
-
     } else if (rank == size - 1) {
         mesh.rho[Lg1] = rhoRecvLPack[0];
         mesh.rho[Lg2] = rhoRecvLPack[1];
@@ -156,11 +150,6 @@ void parallelUpdate(Mesh &mesh){
 
         mesh.E[Lg1] = ERecvLPack[0];
         mesh.E[Lg2] = ERecvLPack[1];
-
-        mesh.u[Lg1] = mesh.mom[Lg1]/mesh.rho[Lg1];
-        mesh.u[Lg2] = mesh.mom[Lg2]/mesh.rho[Lg2];
-        mesh.p[Lg1] = (mesh.gamma - 1.0)*(mesh.E[Lg1] - 0.5*mesh.rho[Lg1]*mesh.u[Lg1]*mesh.u[Lg1]);
-        mesh.p[Lg2] = (mesh.gamma - 1.0)*(mesh.E[Lg2] - 0.5*mesh.rho[Lg2]*mesh.u[Lg2]*mesh.u[Lg2]);
     } else {
         mesh.rho[Rg1] = rhoRecvRPack[0];
         mesh.rho[Rg2] = rhoRecvRPack[1];
@@ -179,14 +168,5 @@ void parallelUpdate(Mesh &mesh){
 
         mesh.E[Lg1] = ERecvLPack[0];
         mesh.E[Lg2] = ERecvLPack[1];
-
-        mesh.u[Rg1] = mesh.mom[Rg1]/mesh.rho[Rg1];
-        mesh.u[Rg2] = mesh.mom[Rg2]/mesh.rho[Rg2];
-        mesh.p[Rg1] = (mesh.gamma - 1.0)*(mesh.E[Rg1] - 0.5*mesh.rho[Rg1]*mesh.u[Rg1]*mesh.u[Rg1]);
-        mesh.p[Rg2] = (mesh.gamma - 1.0)*(mesh.E[Rg2] - 0.5*mesh.rho[Rg2]*mesh.u[Rg2]*mesh.u[Rg2]);
-        mesh.u[Lg1] = mesh.mom[Lg1]/mesh.rho[Lg1];
-        mesh.u[Lg2] = mesh.mom[Lg2]/mesh.rho[Lg2];
-        mesh.p[Lg1] = (mesh.gamma - 1.0)*(mesh.E[Lg1] - 0.5*mesh.rho[Lg1]*mesh.u[Lg1]*mesh.u[Lg1]);
-        mesh.p[Lg2] = (mesh.gamma - 1.0)*(mesh.E[Lg2] - 0.5*mesh.rho[Lg2]*mesh.u[Lg2]*mesh.u[Lg2]);
     }
 }
